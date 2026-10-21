@@ -1,6 +1,6 @@
 {
     "name": "POS Hotel INTC - Produits d'accueil",
-    "version": "19.0.1.0.5",
+    "version": "19.0.1.0.6",
     "summary": "Kits de produits d'accueil par type de chambre, débités du stock au ménage",
     "description": """
 Produits d'accueil des chambres (savon, shampoing, papier toilette...) :

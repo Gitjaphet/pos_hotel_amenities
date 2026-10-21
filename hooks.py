@@ -3,7 +3,9 @@ def post_init_hook(env):
 
 
 def _create_amenity_reserves(env):
-    """Crée la réserve produits d'accueil de chaque entrepôt existant, pour
-    qu'elle apparaisse dès l'installation (achats reçus dedans, transferts)."""
+    """Crée, pour chaque entrepôt existant, la réserve produits d'accueil et
+    le type d'opération « Consommation ménage » (WH/HK/...), pour qu'ils
+    apparaissent dès l'installation."""
     for warehouse in env["stock.warehouse"].search([]):
         warehouse._x_amenity_reserve_location()
+        warehouse._x_amenity_picking_type()

@@ -99,10 +99,9 @@ class ProjectTask(models.Model):
                 task.message_post(body=f"⚠️ Débit des produits d'accueil impossible ({origin}) : {e}")
 
     def _x_create_amenity_picking(self, warehouse, dest, quantities, origin):
-        """Crée et valide un bon de sortie de produits d'accueil rattaché à
-        cette tâche, depuis la réserve produits d'accueil de l'entrepôt. Le
-        stock peut devenir négatif : le comptage d'inventaire corrigera
-        l'écart."""
+        """Crée et valide un bon de ménage (WH/HK/...) rattaché à cette tâche,
+        depuis la réserve produits d'accueil de l'entrepôt. Le stock peut
+        devenir négatif : le comptage d'inventaire corrigera l'écart."""
         self.ensure_one()
         Move = self.env["stock.move"]
         src = warehouse._x_amenity_reserve_location()
@@ -122,7 +121,7 @@ class ProjectTask(models.Model):
                 vals["product_uom"] = product.uom_id.id
             move_cmds.append(Command.create(vals))
         picking = self.env["stock.picking"].sudo().with_company(warehouse.company_id).create({
-            "picking_type_id": warehouse.int_type_id.id,
+            "picking_type_id": warehouse._x_amenity_picking_type().id,
             "location_id": src.id,
             "location_dest_id": dest.id,
             "origin": origin,
