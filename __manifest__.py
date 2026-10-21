@@ -1,6 +1,6 @@
 {
     "name": "POS Hotel INTC - Produits d'accueil",
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.0.1",
     "summary": "Kits de produits d'accueil par type de chambre, débités du stock au ménage",
     "description": """
 Produits d'accueil des chambres (savon, shampoing, papier toilette...) :
@@ -16,6 +16,7 @@ Produits d'accueil des chambres (savon, shampoing, papier toilette...) :
     "depends": ["POS_HOTEL_INTC", "stock_account"],
     "data": [
         "security/ir.model.access.csv",
+        "data/stock_location_data.xml",
         "views/planning_role_views.xml",
         "views/resource_resource_views.xml",
     ],
