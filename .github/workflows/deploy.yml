@@ -71,12 +71,12 @@ jobs:
             # 1. Code : le VPS reflète toujours GitHub (supporte un historique réécrit).
             if [ -d "$CLIENT_DIR/.git" ]; then
               cd "$CLIENT_DIR"
-              git remote set-url origin git@github.com:${{ github.repository }}.git
+              git remote set-url origin https://github.com/${{ github.repository }}.git
               PREV=$(git rev-parse HEAD)
               git fetch origin
               git reset --hard origin/main
             else
-              git clone git@github.com:${{ github.repository }}.git "$CLIENT_DIR"
+              git clone https://github.com/${{ github.repository }}.git "$CLIENT_DIR"
               cd "$CLIENT_DIR"
               PREV=""
             fi
