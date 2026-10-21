@@ -67,7 +67,8 @@ class ProjectTask(models.Model):
         return warehouse, dest
 
     def _x_consume_amenities(self):
-        """Débite le kit de la chambre : WH/Stock -> Consommation chambres.
+        """Débite le kit de la chambre : réserve produits d'accueil ->
+        Consommation chambres.
 
         Ne bloque JAMAIS le ménage : en cas d'échec, seul le débit est annulé
         (savepoint), la tâche reste « Propre » et le motif est posté dans son
@@ -99,11 +100,12 @@ class ProjectTask(models.Model):
 
     def _x_create_amenity_picking(self, warehouse, dest, quantities, origin):
         """Crée et valide un bon de sortie de produits d'accueil rattaché à
-        cette tâche. Le stock peut devenir négatif : le comptage
-        d'inventaire corrigera l'écart."""
+        cette tâche, depuis la réserve produits d'accueil de l'entrepôt. Le
+        stock peut devenir négatif : le comptage d'inventaire corrigera
+        l'écart."""
         self.ensure_one()
         Move = self.env["stock.move"]
-        src = warehouse.lot_stock_id
+        src = warehouse._x_amenity_reserve_location()
         move_cmds = []
         for product, qty in quantities.items():
             vals = {
