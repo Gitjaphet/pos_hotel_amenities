@@ -30,6 +30,19 @@ class ProjectTask(models.Model):
                 )._x_consume_amenities()
         return res
 
+    def _x_is_superseded(self):
+        """Vrai si une tâche de ménage plus récente existe pour la même
+        chambre. booking_engine crée une tâche chaque nuit sans fermer les
+        précédentes : seule la plus récente correspond au ménage réel, les
+        anciennes sont périmées et ne doivent rien débiter (sinon fermer un
+        arriéré débiterait des ménages vieux de plusieurs semaines)."""
+        self.ensure_one()
+        return bool(self.sudo().search_count([
+            ("project_id", "=", self.project_id.id),
+            ("x_resource_id", "=", self.x_resource_id.id),
+            ("id", ">", self.id),
+        ], limit=1))
+
     def _x_consume_amenities(self):
         """Débite le kit de la chambre : WH/Stock -> Consommation chambres.
 
@@ -43,11 +56,17 @@ class ProjectTask(models.Model):
         for task in self:
             room = task.x_resource_id
             cleaning = task.x_cleaning or "checkout"
+            label = "Séjour" if cleaning == "stayover" else "Départ"
+            origin = f"Ménage {room.name} ({label})"
+            if task._x_is_superseded():
+                task.message_post(
+                    body=f"Ménage remplacé par une tâche plus récente pour la chambre "
+                         f"{room.name} : aucun produit d'accueil débité ({origin})."
+                )
+                continue
             quantities = room._x_get_amenity_quantities(cleaning)
             if not quantities:
                 continue
-            label = "Séjour" if cleaning == "stayover" else "Départ"
-            origin = f"Ménage {room.name} ({label})"
             try:
                 with self.env.cr.savepoint():
                     if not dest:
