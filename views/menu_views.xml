@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Raccourci vers les kits, depuis l'application Réservation(s) :
+         uniquement les types de chambre (jamais les rôles d'employés),
+         création désactivée — un type de chambre se crée dans booking_engine
+         avec ses prix, ici on n'en modifie que le kit. -->
+    <record id="action_amenity_room_types" model="ir.actions.act_window">
+        <field name="name">Kits produits d'accueil</field>
+        <field name="res_model">planning.role</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('x_is_a_room_offer', '=', True)]</field>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aucun type de chambre</p>
+            <p>Les types de chambre se créent dans Réservation(s) → Configuration → Offres de séjour.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_amenity_room_types"
+              name="Kits produits d'accueil"
+              parent="booking_engine.booking_engine_rooms_menu"
+              action="action_amenity_room_types"
+              sequence="90"/>
+</odoo>
