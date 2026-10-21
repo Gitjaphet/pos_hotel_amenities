@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tâche de ménage (vue primaire de booking_engine : les tâches de
+         projet ordinaires ne sont pas touchées). Bouton pour les demandes
+         imprévues du client + récapitulatif de tout ce qui a été débité. -->
+    <record id="project_task_form_amenities" model="ir.ui.view">
+        <field name="name">project.task.form.amenities</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="booking_engine.project_task_form_view_primary"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_open_amenity_supplement_wizard" type="object"
+                        string="Produits supplémentaires" invisible="not x_resource_id"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page name="amenities_page" string="Produits d'accueil" invisible="not x_resource_id">
+                    <field name="x_amenity_picking_ids" readonly="1">
+                        <list>
+                            <field name="name"/>
+                            <field name="origin"/>
+                            <field name="date_done"/>
+                            <field name="state"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

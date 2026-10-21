@@ -12,8 +12,14 @@ class ProjectTask(models.Model):
     x_amenity_picking_id = fields.Many2one(
         "stock.picking", string="Consommation produits d'accueil",
         readonly=True, copy=False,
-        help="Transfert de stock créé quand ce ménage est passé à « Propre ». "
+        help="Transfert du kit, créé quand ce ménage est passé à « Propre ». "
              "Rempli = déjà débité : un ménage n'est jamais débité deux fois.",
+    )
+    x_amenity_picking_ids = fields.One2many(
+        "stock.picking", "x_hk_task_id",
+        string="Produits d'accueil débités",
+        help="Tous les bons de sortie de ce ménage : kit automatique et "
+             "produits supplémentaires demandés par le client.",
     )
 
     def write(self, vals):
@@ -43,6 +49,23 @@ class ProjectTask(models.Model):
             ("id", ">", self.id),
         ], limit=1))
 
+    def _x_amenity_locations(self):
+        """(entrepôt, emplacement de consommation) pour cette tâche.
+        Lève une UserError explicite si la configuration est incomplète."""
+        self.ensure_one()
+        dest = self.env.ref(
+            "pos_hotel_amenities.stock_location_room_consumption", raise_if_not_found=False
+        )
+        if not dest:
+            raise UserError("Emplacement « Consommation chambres » introuvable.")
+        company = self.company_id or self.env.company
+        warehouse = self.env["stock.warehouse"].sudo().search(
+            [("company_id", "=", company.id)], limit=1
+        )
+        if not warehouse:
+            raise UserError(f"Aucun entrepôt pour la société {company.name}.")
+        return warehouse, dest
+
     def _x_consume_amenities(self):
         """Débite le kit de la chambre : WH/Stock -> Consommation chambres.
 
@@ -50,9 +73,6 @@ class ProjectTask(models.Model):
         (savepoint), la tâche reste « Propre » et le motif est posté dans son
         fil de discussion.
         """
-        dest = self.env.ref(
-            "pos_hotel_amenities.stock_location_room_consumption", raise_if_not_found=False
-        )
         for task in self:
             room = task.x_resource_id
             cleaning = task.x_cleaning or "checkout"
@@ -69,14 +89,7 @@ class ProjectTask(models.Model):
                 continue
             try:
                 with self.env.cr.savepoint():
-                    if not dest:
-                        raise UserError("Emplacement « Consommation chambres » introuvable.")
-                    company = task.company_id or self.env.company
-                    warehouse = self.env["stock.warehouse"].sudo().search(
-                        [("company_id", "=", company.id)], limit=1
-                    )
-                    if not warehouse:
-                        raise UserError(f"Aucun entrepôt pour la société {company.name}.")
+                    warehouse, dest = task._x_amenity_locations()
                     picking = task._x_create_amenity_picking(warehouse, dest, quantities, origin)
                     task.x_amenity_picking_id = picking
                 task.message_post(body=f"Produits d'accueil débités du stock : {picking.name} ({origin}).")
@@ -85,8 +98,10 @@ class ProjectTask(models.Model):
                 task.message_post(body=f"⚠️ Débit des produits d'accueil impossible ({origin}) : {e}")
 
     def _x_create_amenity_picking(self, warehouse, dest, quantities, origin):
-        """Crée et valide le transfert de consommation. Le stock peut devenir
-        négatif : le comptage d'inventaire corrigera l'écart."""
+        """Crée et valide un bon de sortie de produits d'accueil rattaché à
+        cette tâche. Le stock peut devenir négatif : le comptage
+        d'inventaire corrigera l'écart."""
+        self.ensure_one()
         Move = self.env["stock.move"]
         src = warehouse.lot_stock_id
         move_cmds = []
@@ -109,6 +124,7 @@ class ProjectTask(models.Model):
             "location_id": src.id,
             "location_dest_id": dest.id,
             "origin": origin,
+            "x_hk_task_id": self.id,
             "move_ids": move_cmds,
         })
         picking.action_confirm()
@@ -119,3 +135,16 @@ class ProjectTask(models.Model):
         if picking.state != "done":
             raise UserError(f"Le transfert {picking.name} n'a pas pu être validé (état : {picking.state}).")
         return picking
+
+    def action_open_amenity_supplement_wizard(self):
+        """Fenêtre « Produits supplémentaires » : demande imprévue d'un client
+        (2 savons de plus...). Débit ponctuel, le kit n'est jamais modifié."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Produits supplémentaires",
+            "res_model": "pos.hotel.amenity.supplement.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {"default_task_id": self.id},
+        }
