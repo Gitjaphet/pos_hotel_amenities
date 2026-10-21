@@ -1,4 +1,5 @@
 from odoo import fields, models
+from odoo.exceptions import UserError
 
 
 class ResourceResource(models.Model):
@@ -40,3 +41,29 @@ class ResourceResource(models.Model):
         for line in self.x_amenity_line_ids:
             quantities[line.product_id] = line[qty_field]
         return {product: qty for product, qty in quantities.items() if qty > 0}
+
+    def _x_latest_hk_task(self):
+        """Tâche de ménage la plus récente de la chambre (le ménage du jour).
+
+        booking_engine crée une tâche chaque nuit sans fermer les précédentes,
+        et sa « tâche en cours » (x_ongoing_task_id) peut pointer vers une
+        ancienne : on prend toujours la plus récente, même règle que
+        project.task._x_is_superseded().
+        """
+        self.ensure_one()
+        return self.env["project.task"].sudo().search([
+            ("x_resource_id", "=", self.id),
+            ("project_id.x_is_house_keeping_project", "=", True),
+        ], order="id desc", limit=1)
+
+    def action_open_amenity_supplement_wizard(self):
+        """Produits supplémentaires depuis la fiche chambre : la demande est
+        rangée dans le ménage le plus récent de la chambre."""
+        self.ensure_one()
+        task = self._x_latest_hk_task()
+        if not task:
+            raise UserError(
+                f"La chambre {self.name} n'a encore aucune tâche de ménage : "
+                "les produits supplémentaires se rattachent à un ménage."
+            )
+        return task.action_open_amenity_supplement_wizard()

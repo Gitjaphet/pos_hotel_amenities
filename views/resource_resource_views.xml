@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Fiche chambre : kit hérité du type (lecture seule) puis surcharges
-         propres à la chambre. Masqué sur les ressources qui ne sont pas des
-         chambres (employés, matériel) qui partagent le même modèle. -->
+    <!-- Fiche chambre : bouton « Produits supplémentaires », kit hérité du
+         type (lecture seule) puis surcharges propres à la chambre. Masqué
+         sur les ressources qui ne sont pas des chambres (employés, matériel)
+         qui partagent le même modèle. -->
     <record id="resource_resource_form_amenities" model="ir.ui.view">
         <field name="name">resource.resource.form.amenities</field>
         <field name="model">resource.resource</field>
@@ -11,6 +12,12 @@
             <xpath expr="/form/sheet" position="inside">
                 <field name="x_is_hotel_room" invisible="1"/>
                 <group string="Produits d'accueil" invisible="not x_is_hotel_room">
+                    <div colspan="2">
+                        <button name="action_open_amenity_supplement_wizard" type="object"
+                                string="Produits supplémentaires" class="btn-primary"
+                                icon="fa-plus"/>
+                        <span class="text-muted ms-2">Demande ponctuelle d'un client, débitée immédiatement.</span>
+                    </div>
                     <field name="x_role_amenity_line_ids" string="Kit du type de chambre" colspan="2">
                         <list>
                             <field name="product_id"/>

@@ -138,13 +138,17 @@ class ProjectTask(models.Model):
 
     def action_open_amenity_supplement_wizard(self):
         """Fenêtre « Produits supplémentaires » : demande imprévue d'un client
-        (2 savons de plus...). Débit ponctuel, le kit n'est jamais modifié."""
+        (2 savons de plus...). Débit ponctuel, le kit n'est jamais modifié.
+
+        Toujours rangé dans le ménage le plus récent de la chambre, même si
+        le bouton est utilisé depuis une ancienne tâche."""
         self.ensure_one()
+        task = self.x_resource_id._x_latest_hk_task() if self.x_resource_id else self
         return {
             "type": "ir.actions.act_window",
             "name": "Produits supplémentaires",
             "res_model": "pos.hotel.amenity.supplement.wizard",
             "view_mode": "form",
             "target": "new",
-            "context": {"default_task_id": self.id},
+            "context": {"default_task_id": (task or self).id},
         }

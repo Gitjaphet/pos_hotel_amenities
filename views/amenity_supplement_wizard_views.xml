@@ -5,6 +5,9 @@
         <field name="model">pos.hotel.amenity.supplement.wizard</field>
         <field name="arch" type="xml">
             <form string="Produits supplémentaires">
+                <!-- task_id doit être dans la vue pour que la chambre
+                     (champ related) s'affiche. -->
+                <field name="task_id" invisible="1"/>
                 <group>
                     <field name="room_id" readonly="1"/>
                 </group>
