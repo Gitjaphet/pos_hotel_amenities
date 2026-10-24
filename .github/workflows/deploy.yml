@@ -6,32 +6,31 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Version figée : ubuntu-latest change sans prévenir (migration vers 26).
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - name: Install lint tools
         run: pip install pyflakes
       - name: Python syntax check
         run: pyflakes . || true
-        # "|| true" pour l'instant tant que le module n'est pas 100% lint-clean.
-        # À retirer plus tard pour bloquer réellement sur erreurs de lint.
       - name: Check compileall (erreurs de syntaxe bloquantes)
         run: python -m compileall -q .
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Validate __manifest__.py
         run: |
-          python3 <<'EOF'
+          python3 <<'PYEOF'
           import ast, glob, sys
           manifests = glob.glob('**/__manifest__.py', recursive=True)
           if not manifests:
@@ -46,10 +45,10 @@ jobs:
                       print(f"{path}: clé manquante '{key}'")
                       sys.exit(1)
               print(f"{path} OK — {data.get('name')} v{data.get('version')}")
-          EOF
+          PYEOF
 
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build
     if: github.ref == 'refs/heads/main'
     steps:
@@ -60,48 +59,11 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 20m
+          command_timeout: 30m
+          # Script du VPS (/usr/local/bin/odoo-deploy-module) : mise à jour du
+          # module sur TOUTES les bases où il est installé (demo d'abord),
+          # sauvegarde de chaque base, restauration et retour du code si une
+          # base échoue (incident du 24/10/2026 : seule demo était mise à jour).
           script: |
             set -e
-            CLIENT_DIR=/odoo19/mes-modules-pro/pos_hotel_amenities
-            MODULE=pos_hotel_amenities
-            DB="${{ vars.ODOO_DB || 'demo' }}"
-            ODOO_BIN="/odoo19/odoo-venv/bin/python /odoo19/odoo-community/odoo-bin -c /odoo19/odoo.conf"
-
-            # 1. Code : le VPS reflète toujours GitHub (supporte un historique réécrit).
-            if [ -d "$CLIENT_DIR/.git" ]; then
-              cd "$CLIENT_DIR"
-              git remote set-url origin https://github.com/${{ github.repository }}.git
-              PREV=$(git rev-parse HEAD)
-              git fetch origin
-              git reset --hard origin/main
-            else
-              git clone https://github.com/${{ github.repository }}.git "$CLIENT_DIR"
-              cd "$CLIENT_DIR"
-              PREV=""
-            fi
-            echo "Déploiement : $(git log --oneline -1)"
-
-            # 2. Mise à jour du module, Odoo arrêté.
-            LOG=$(mktemp)
-            sudo systemctl stop odoo
-            set +e
-            sudo -u odoo19 $ODOO_BIN -d "$DB" -u "$MODULE" --stop-after-init > "$LOG" 2>&1
-            RC=$?
-            set -e
-
-            # 3. Échec : erreur affichée, retour au commit précédent, site maintenu.
-            if [ $RC -ne 0 ] || grep -q "Traceback" "$LOG"; then
-              echo "=== ÉCHEC de la mise à jour de $MODULE sur $DB ==="
-              tail -80 "$LOG"
-              if [ -n "$PREV" ]; then
-                git reset --hard "$PREV"
-                echo "Code revenu à $(git log --oneline -1)"
-              fi
-              sudo systemctl start odoo
-              exit 1
-            fi
-
-            # 4. Succès.
-            sudo systemctl start odoo
-            echo "Module $MODULE mis à jour sur $DB, Odoo redémarré."
+            odoo-deploy-module pos_hotel_amenities /odoo19/mes-modules-pro/pos_hotel_amenities https://github.com/${{ github.repository }}.git
